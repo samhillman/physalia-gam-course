@@ -3,6 +3,8 @@ title: "Heart attacks & creatinine kinase"
 author: "Gavin Simpson"
 date: "14/02/2022"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -54,31 +56,175 @@ ck <- ck %>%
 
 1. Produce a plot of the proportion of patients who suffered a heart attack vs the creatinine kinase level in the patient's blood
 
+```{r plot}
+
+head(ck)
+
+ck %>%
+  ggplot(aes(x = ck, y = proportion)) +
+  geom_point() +
+  theme_bw() +
+  labs(x = "Creatinine Kinase level",
+       y = "Proportion of patients with heart attack")
+
+```
+
 2. Fit a binomial GLM (logit link) using the `glm()` to model the proportion of patients who suffered a heart attack as a function of the creatinine kinase level in the patient's blood
 
     Hint: If you're not sure how to specify the response for the GLM, read the *Details* section of `?glm`. You can use either the
 
         * two-column matrix version or,
         * the proportion as response but specify total counts via the `weights` argument
+        
+```{r model}
+
+m <- glm(proportion ~ ck, 
+    weights = total,
+    family = binomial(link="logit"),
+    data = ck)
+
+ck_model <- m
+
+```
 
 3. Produce the model summary using `summary()`
 
     Is the effect of `ck` on the proportion of patients with heart attacks statistically significant?
 
+```{r model-summary}
+
+summary(ck_model)
+
+# Yes it is
+
+```
+
+
 4. Calculate a quick goodness of fit test for the model using the information provided on the residual deviance
+
+```{r}
+
+pchisq(deviance(ck_model), 
+       df.residual(ck_model), 
+       lower.tail = FALSE)
+
+```
+
 
 5. Plot the model diagnostics
 
+```{r}
+plot(ck_model)
+
+performance::check_model(ck_model)
+
+```
+
+
 6. Add fitted values of the model as a line on to the plot you created earlier
+
+```{r}
+
+# could just save the graph from earlier and add to it but repeated here
+
+summary(ck_model)
+
+predicted_data <- with(ck,
+                       tibble(ck = seq(1, 500, length = 100)))
+
+# predict
+pred <- predict(ck_model, 
+                predicted_data,
+                type = "link", 
+                se.fit = TRUE)
+
+ilink <- family(ck_model)$linkinv # g-1()
+
+predicted_data <- 
+  predicted_data %>%
+  data.frame(pred) %>%
+  mutate(fitted = ilink(fit),
+         upper = ilink(fit + (2 * se.fit)),
+         lower = ilink(fit - (2 * se.fit)))
+
+head(predicted_data)
+
+ck %>%
+  ggplot(aes(x = ck, y = proportion)) +
+  geom_point() +
+  geom_ribbon(aes(ymin = lower, 
+                  ymax = upper,
+                  x = ck), 
+              data = predicted_data,
+              inherit.aes = FALSE, 
+              alpha = 0.2) +
+    geom_line(data = predicted_data, aes(y = fitted)) +
+  labs(x = "Creatinine Kinase level",
+       y = "Proportion of patients with heart attack") +
+    theme_bw() 
+
+#OR:
+fitted(ck_model)
+ck %>%
+  mutate(fitted_1 = fitted(ck_model)) %>%
+  ggplot(aes(x = ck, 
+                 y = proportion)) +
+  geom_point() +
+  geom_line(aes(y = fitted_1)) +
+  labs(x = "Creatinine kinase level", y = "Proportion Heart Attack") +
+  theme_bw()
+
+```
+
 
 7. Looking at the model diagnostics and the plot of the fitted values versus the data, identify a problem with this model. Describe the problem in a few words.
 
 8. Modify your model to account for the identified problem
 
     Hint: use ploynomials of `ck`
+    
+```{r}
+
+ck_model2 <- glm(proportion ~ poly(ck, 3),
+    weights = total,
+    family = binomial(link="logit"),
+    data = ck)
+
+summary(ck_model2)
+
+ck %>%
+  mutate(fitted_2 = fitted(ck_model2)) %>%
+  ggplot(aes(x = ck, 
+                 y = proportion)) +
+  geom_point() +
+  geom_line(aes(y = fitted_2)) +
+  labs(x = "Creatinine kinase level", y = "Proportion Heart Attack") +
+  theme_bw()
+
+```
+
 
 9. Look at the model summary, model diagnostic plots, and perform the goodness of fit test on the residual deviance. Are there any problems with this model?
+
+```{r}
+
+summary(ck_model2)
+plot(ck_model2)
+
+# still not great!
+
+```
+
 
 10. Compare the two models using AIC and a generalized likelihood ratio test (GLRT). Which model is to be preferred?
 
     Hint: the `anova()` function is used to do the GLRT
+    
+```{r}
+
+AIC(ck_model, ck_model2)
+
+anova(ck_model, ck_model2, test = "LRT")
+
+```
+

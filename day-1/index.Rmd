@@ -15,6 +15,8 @@ output:
       countIncrementalSlides: false
       beforeInit: "macros.js"
       ratio: '16:9'
+editor_options: 
+  chunk_output_type: console
 ---
 class: inverse middle center big-subsection
 
@@ -600,7 +602,7 @@ gtemp <- read_table(URL, col_types = 'nnnnnnnnnnnn', col_names = FALSE) %>%
 gtemp_plt <- ggplot(gtemp, aes(x = Year, y = Temperature)) +
     geom_line() + 
     geom_point() +
-    labs(x = 'Year', y = expression(Temeprature ~ degree*C))
+    labs(x = 'Year', y = expression(Temprature ~ degree*C))
 gtemp_plt
 ```
 
